@@ -146,7 +146,7 @@ const CFG={
   BALLS:10,            // balls per entry
   EXTRA_BALLS:5,       // balls per "continue" purchase (keeps your score)
   COST_ENTRY:2,COST_CONTINUE:1,  // in chocolates, display only
-  BALL_VALUE:1000,     // points a ball is worth at 1x
+  BALL_VALUE:2500,     // points a ball is worth at 1x
   TIER1:50000,         // 1x SPIN
   GRAND:100000,        // 3x SPIN
   // BOUNCE BIAS: each peg hit turns the outgoing velocity toward the middle by up to BIAS_MAX
@@ -159,7 +159,7 @@ const CFG={
   BAR_CURVE:.5,        // progress bar exponent: below 1 the bar runs ahead of the real score
   BOMB_CHANCE:.09,     // share of pegs that detonate on first contact
   BOOM_SPEED:11,       // speed the blast hands the ball, in px per physics step
-  LUCKY_CHANCE:0.2    // one ball in five takes no steering at all: this is what makes winning "possible"
+  LUCKY_CHANCE:1    // one ball in five takes no steering at all: this is what makes winning "possible"
 };
 // ELEPHANT: a peg is placed on a staggered lattice wherever a character below is not a space.
 // The art maps onto a 480px-wide area starting at ART_Y; shrink PEG_GAP for a crisper elephant (ball must stay smaller than the gaps).
@@ -247,7 +247,7 @@ function biasBounce(b,s){
   const v=b.velocity,dir=b.position.x<W/2?1:-1;
   // damp the sideways motion and put part of the fall speed back into an inward bounce, so the
   // ball leaves the peg turned toward the middle and can't carry its old drift across the board
-  Body.setVelocity(b,{x:v.x*(1-k)+dir*Math.abs(v.y)*k,y:v.y});
+  Body.setVelocity(b,{x:v.x*(1-k)+dir*Math.abs(v.y)*k,y:v.y - 10});
 }
 
 // ---------- logo layout ----------
