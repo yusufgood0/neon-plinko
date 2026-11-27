@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neon Plinko</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--p:#7840b9;--g:#08ff00;--bg:#07000f;--gold:#ffd400;--hot:#ff2e88;--card:#12031f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{margin:0;min-height:100%}
+body{background:radial-gradient(ellipse at 50% 0,#22093f,var(--bg) 70%) fixed var(--bg);color:#fff;font-family:Orbitron,"Courier New",monospace;display:flex;justify-content:center}
+.app{width:min(480px,100vw);padding:10px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box}
+.hud{display:flex;gap:10px}
+.box{flex:1;background:var(--card);border:2px solid var(--p);border-radius:12px;padding:8px 12px;box-shadow:0 0 14px rgba(120,64,185,.5)}
+.box small{display:block;font-size:.6rem;color:#b99be6;letter-spacing:.08em}
+.box b{font-size:1.3rem;color:var(--g);text-shadow:0 0 10px var(--g)}
+#win.pop b{animation:pop .5s}
+@keyframes pop{50%{transform:scale(1.25);color:var(--gold)}}
+.wrap{position:relative;width:min(100%,calc((100dvh - 260px)*.686));min-width:300px;margin:0 auto;border:5px solid var(--p);border-radius:16px;overflow:hidden;box-shadow:0 0 30px 6px rgba(120,64,185,.6),inset 0 0 20px rgba(8,255,0,.2)}
+canvas{display:block;width:100%;height:auto;background:#0a0015}
+#big{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;opacity:0;text-align:center}
+#big.show{animation:big 1.6s ease-out}
+#big h1{margin:0;font-size:2.6rem;font-weight:800;color:var(--gold);text-shadow:0 0 20px var(--gold),0 0 50px var(--hot)}
+#big p{margin:6px 0 0;font-size:1.6rem;color:var(--g);text-shadow:0 0 14px var(--g)}
+@keyframes big{0%{opacity:0;transform:scale(.3) rotate(-8deg)}15%{opacity:1;transform:scale(1.15) rotate(2deg)}25%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.1)}}
+.row{display:flex;gap:8px;align-items:stretch}
+button{font:inherit;cursor:pointer;border:2px solid var(--p);background:var(--card);color:#fff;border-radius:10px;padding:10px 12px;font-weight:600;font-size:.8rem;transition:transform .08s}
+button:active{transform:scale(.94)}
+button:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+button.on{background:var(--g);color:#05000a;border-color:var(--g);box-shadow:0 0 16px var(--g)}
+#bet{flex:1.4;display:flex;align-items:center;justify-content:center;border:2px solid var(--g);border-radius:10px;color:var(--g);font-weight:800}
+#drop{flex:1;font-size:1.3rem;font-weight:800;padding:16px;background:linear-gradient(180deg,#9a5be0,var(--p));border-color:#c9a2ff;animation:throb 1.4s infinite}
+@keyframes throb{50%{box-shadow:0 0 28px 4px rgba(8,255,0,.55)}}
+#hist{display:flex;gap:5px;min-height:26px;flex-wrap:wrap}
+#hist span{font-size:.7rem;font-weight:800;padding:4px 7px;border-radius:6px;color:#05000a}
+#streak{font-size:.75rem;color:var(--hot);text-shadow:0 0 8px var(--hot);min-height:1em;text-align:center}
+#note,#dbg{font-size:.6rem;color:#8d72b8;text-align:center}
+
+.hud .box{min-width:0}
+.hud .box.sm{flex:.8}
+#dots{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;min-height:10px}
+#dots i{width:9px;height:9px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g)}
+#dots i.used{background:#2a1245;box-shadow:none}
+#goal{position:relative;height:24px;background:var(--card);border:2px solid var(--p);border-radius:12px;overflow:hidden;box-shadow:0 0 14px rgba(120,64,185,.5)}
+#goal .fill{height:100%;width:0;background:linear-gradient(90deg,var(--p),var(--g));transition:width .35s}
+#goal span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.58rem;letter-spacing:.05em;text-shadow:0 0 4px #000,0 0 4px #000;white-space:nowrap}
+#drop:disabled{opacity:.45;animation:none;cursor:not-allowed}
+#lb{background:var(--card);border:2px solid var(--p);border-radius:12px;padding:8px 12px;box-shadow:0 0 14px rgba(120,64,185,.4)}
+#lb small{display:block;font-size:.6rem;color:#b99be6;letter-spacing:.08em;margin-bottom:4px}
+#lb ol{margin:0;padding:0;list-style:none;font-size:.72rem}
+#lb li{display:flex;justify-content:space-between;gap:8px;padding:2px 0;color:#d9c7f5}
+#lb li:first-child{color:var(--gold);text-shadow:0 0 8px var(--gold)}
+#lb li em{font-style:normal;color:#8d72b8;font-size:.55rem;margin-left:4px}
+.prizeBar{position:relative;height:34px;margin:12px 0;background:#07000f;border:2px solid var(--p);border-radius:12px;overflow:hidden;box-shadow:0 0 18px rgba(120,64,185,.6)}
+.prizeBar i{display:block;height:100%;background:linear-gradient(90deg,var(--p),var(--g));box-shadow:0 0 16px var(--g);transition:width .6s ease-out}
+.prizeBar b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.66rem;letter-spacing:.05em;text-shadow:0 0 5px #000,0 0 5px #000;white-space:nowrap}
+button.big{font-size:1rem;padding:18px 12px}
+#auth{display:flex;flex-direction:column;gap:6px;padding-bottom:env(safe-area-inset-bottom,0px)}
+button.signin{width:100%;font:inherit;font-size:.72rem;font-weight:800;letter-spacing:.06em;padding:13px 12px;border-radius:12px;background:var(--card);border:2px solid var(--p);color:#fff;cursor:pointer}
+button.signin.pending{opacity:.7}
+button.signin.ok{border-color:var(--g);color:var(--g);box-shadow:0 0 16px var(--g);cursor:default}
+button.signin.failed{border-color:var(--hot);color:var(--hot);box-shadow:0 0 16px rgba(255,46,136,.5)}
+#authMsg{font-size:.58rem;color:#8d72b8;text-align:center;min-height:1em}
+#modal{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;background:rgba(7,0,15,.9);padding:12px;overflow:auto}
+#modal.open{display:flex}
+#mBody{width:min(420px,100%);margin:auto;background:var(--card);border:3px solid var(--p);border-radius:16px;padding:16px;text-align:center;box-shadow:0 0 36px 6px rgba(120,64,185,.6)}
+#mBody h2{margin:0 0 6px;font-size:1.9rem;font-weight:800;color:var(--gold);text-shadow:0 0 18px var(--gold),0 0 40px var(--hot)}
+#mBody p{margin:6px 0;font-size:.78rem;line-height:1.5;color:#d9c7f5}
+#mBody b{color:var(--g)}
+#mBody .sub{color:var(--g);font-weight:800}
+#mBody .hot{color:var(--hot);font-weight:800;text-shadow:0 0 10px var(--hot);font-size:.95rem}
+#mBody .tiny{font-size:.6rem;color:#8d72b8}
+#mBody .prize{color:var(--gold);font-weight:800;font-size:1rem}
+.big2{margin:8px 0}
+.big2 small{display:block;font-size:.65rem;color:#b99be6;letter-spacing:.08em}
+.big2 b{font-size:1.9rem;text-shadow:0 0 14px var(--g)}
+#mBody input{width:100%;box-sizing:border-box;font:inherit;font-size:.8rem;padding:10px;margin:6px 0;border-radius:10px;border:2px solid var(--p);background:#07000f;color:#fff;text-align:center}
+#mBody input:focus-visible{outline:2px solid var(--g)}
+#mBody button{display:block;width:100%;margin-top:8px}
+#mBody button small{display:block;font-size:.55rem;font-weight:600;opacity:.8;margin-top:3px}
+button.cta{background:linear-gradient(180deg,#9a5be0,var(--p));border-color:#c9a2ff;padding:14px 12px;font-size:.85rem;font-weight:800;animation:throb 1.4s infinite}
+button.alt{background:linear-gradient(180deg,#ff5aa5,var(--hot));border-color:#ffb3d4;color:#05000a}
+#lab{font-size:.6rem;color:#b99be6;background:var(--card);border:2px dashed var(--hot);border-radius:12px;padding:8px 12px}
+#lab summary{cursor:pointer;font-weight:800;color:var(--hot)}
+#labOut{white-space:pre-wrap;font:inherit;color:var(--g);margin:6px 0 0}
+#lab button{margin-top:6px}
+@media (prefers-reduced-motion:reduce){button.cta{animation:none}}
+@media (prefers-reduced-motion:reduce){#drop{animation:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hud">
+    <div class="box"><small>CHECKOUT SCORE</small><b id="sc">0</b></div>
+    <div class="box sm"><small>BALLS LEFT</small><b id="ballsN">0</b><div id="dots" aria-hidden="true"></div></div>
+    <div class="box sm" id="win"><small>LAST WIN</small><b id="lw">0</b></div>
+    <div class="box sm"><small>SPINS</small><b id="spinsN">0</b></div>
+  </div>
+  <div id="goal" role="progressbar" aria-label="Progress to next prize"><div class="fill" id="goalFill"></div><span id="goalTxt"></span></div>
+  <div class="wrap">
+    <canvas id="c" aria-label="Plinko board"></canvas>
+    <div id="big"><h1></h1><p></p></div>
+  </div>
+  <div id="streak"></div>
+  <div class="row">
+    <button id="drop">DROP</button>
+    <button id="auto">AUTO</button>
+    <button id="mute" aria-label="Toggle sound">SFX</button>
+  </div>
+  <div id="hist"></div>
+  <div id="lb"><small>TODAY'S LEADERBOARD</small><ol id="lbList"></ol></div>
+  <details id="lab" hidden open>
+    <summary>TEACHER MODE (#teacher)</summary>
+    <div id="labLive"></div>
+    <button id="labRun">RUN ODDS LAB: 300 SESSIONS</button>
+    <pre id="labOut"></pre>
+  </details>
+  <div id="note" hidden>Anonymous play stats (drop timing and ball results) are recorded to improve the game.</div>
+  <div id="auth">
+    <button id="signIn" class="signin">SIGN IN WITH GOOGLE</button>
+    <div id="authMsg"></div>
+  </div>
+  <div id="dbg" hidden></div>
+</div>
+<div id="modal" role="dialog" aria-modal="true"><div id="mBody"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+const {Engine,Bodies,Composite,Events,Body}=Matter;
+const W=480,H=700,SLOTS=11,SW=W/SLOTS,SY=H-80,BR=7,PR=3.5,PEG_GAP=26,ART_Y=105,CW=W/100,CH=9.6;
+// Peg color per ASCII character
+const PALETTE={'*':'#b27cff','=':'#8a4fe0','+':'#08ff00','#':'#f1e3ff','%':'#ff2e88'};
+const BOMB='#ff7a18'; // colour of a peg that is armed
+// LINE BARRIERS: [x1,y1,x2,y2] in board pixels (board is 480 wide x 700 tall, origin top-left). Add as many as you like.
+const LINES=[
+  // [30,400,140,515],    // left funnel
+  // [450,400,340,515],  // right funnel
+  // [45,615,70,580],    // left funnel
+  // [450,400,340,515],  // right funnel
+];
+// =====================================================================
+// CONFIG: every number that decides who wins lives here. Tune it with the Odds Lab (#teacher).
+// 🎓 TEACHING MAP: look for the "DARK PATTERN" comments, each one marks a manipulation technique.
+// =====================================================================
+const CFG={
+  BALLS:10,            // balls per entry
+  EXTRA_BALLS:5,       // balls per "continue" purchase (keeps your score)
+  COST_ENTRY:2,COST_CONTINUE:1,  // in chocolates, display only
+  BALL_VALUE:4900,     // points a ball is worth at 1x
+  TIER1:50000,         // 1x SPIN
+  GRAND:100000,        // 3x SPIN
+  // BOUNCE BIAS: each peg hit turns the outgoing velocity toward the middle by up to BIAS_MAX
+  // radians, scaled by how close the score is to a prize. Balls are never steered in midair.
+  BIAS_BASE:.5,        // the lean never drops below half strength, so every bounce aims inward a little
+  WALL1_TOP:30000,     // the lean reaches full strength here, just short of the 1x prize, then releases
+  WALL2_START:52000,   // second ramp across the gap between the prizes
+  WALL2_TOP:76000,
+  BIAS_MAX:1,          // how much of the bounce turns inward: 1 sends the ball 45 degrees toward the middle
+  BAR_CURVE:.55,        // progress bar exponent: below 1 the bar runs ahead of the real score
+  BOMB_CHANCE:.09,     // share of pegs that detonate on first contact
+  BOOM_SPEED:11,       // speed the blast hands the ball, in px per physics step
+  LUCKY_CHANCE:0.08    // one ball in five takes no steering at all: this is what makes winning "possible"
+};
+// ELEPHANT: a peg is placed on a staggered lattice wherever a character below is not a space.
+// The art maps onto a 480px-wide area starting at ART_Y; shrink PEG_GAP for a crisper elephant (ball must stay smaller than the gaps).
+const ART=`
+                        *+====                                        +++++=
+                      **==========                                ++++++++++==
+                   ***+============= ##*##################****+ ++++++++++++++===
+                *****===============#**************+++==========+++++++++++++++=====
+              *****+===============#**************===============++++++++++++++++=====
+           ******+================ #**************=============== ++++++++++++++++=======
+         *******+================ #***************================ +++++++++++++++++=======
+      ********+================= *****************================= +++++++++++++++++=========
+    *********================== #*****************+================= ++++++++++++++++++=========
+ **********+================== ##*****************+++++============== ++++++++++++++++++===========
+**********==================== #******************++++++++++========= ++++++++++++++++++++=========*
+ *******+==================== ********************+++++++++++++======= ++++++++++++++++++++=======*
+ #*****===================== #********************+++++++++++++++++==== +++++++++++++++++++++====*#
+ ****+===================== #*********************++++++++++++++++++++++ ++++++++++++++++++++++=+**
+ ***+======================+ *********************+++++++++++++++++++++ *+++++++++++++++++++++++**#
+ #***=====================+++ ********************++++++++++++++++++++ **++++++++++++++++++++++***#
+  ****====================++++ *******************+++++++++++++++++++ ****++++++++++++++++++++****
+  ****+===================+++++ ******************++++++++++++++++++ *****+++++++++++++++++++*****
+  #****===================++++++ *****************+++++++++++++++++ ******+++++++++++++++++++****#
+   #****+=================+++++++ ****************++++++++++++++++ *******+++++++++++++++++******
+     *****================++++++++ ***************+++++++++++++++ ********++++++++++++++++****#
+      ##***+==============+++++++++ **************++++++++++++++ *********++++++++++++++****#*
+        ##***=============++++++++++ *************+++++++++++++ **********+++++++++++++***##
+          #***+==========+++++++++++  ************++++++++++++  ***********++++++++++*****
+            ****=========+++++++++++#* ***********+++++++++++ ##***********+++++++++***#
+              ##*+=======++++++++++ #*************++++++++++#### **********+++++++***#
+                ***======++++++++++##*** *********=====++++ ####***********++++++***
+                  **+====+++++++++ %***** ********=========#####* *********++++**#
+                    **+==+++++++++ #***** ********======== #####* *********+++**#
+                      #+=+++++++++%#***** ********======== ######**********+**
+                       #*++++++++ %*****  ********========  #####* *********#
+                         **+++++ %%*****   *******========  #####** ******#
+                           *++++ %#*****   *******=======   ######* *****
+                             *+  %#****    #******=======    #####*  **
+                                %%#****    #******=======    #####**
+                                 %####      ******=======     %%%#*
+                                 %####      ******=======     %%%#*
+                                 %%###      ******======      %%%**
+                                 %%###      ******======      %%#*#
+                                  %###       *****======      %%#*
+                                  %###       #****=====       %%#*
+                                  %%##       *****=====       %%**
+                                   %##       *****=====       %#*
+                                   %##       *****=====       %#*
+                                   %%#        ****====        #**
+                                      #       ****====       *
+                                              #***++==
+                                              #***+++=`.split('\n').slice(1);
+const MULT=[10,5,4,1.5,.6,.3,.6,1.5,4,5,10];
+const $=id=>document.getElementById(id);
+const cv=$('c'),ctx=cv.getContext('2d'),dpr=Math.min(2,window.devicePixelRatio||1);
+cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+
+// ---------- state ----------
+let score=0,shown=0,ballsLeft=0,ballsTotal=0,banked=0,phase='start',tier=0; // phase: start | playing | ending | over | done
+let lastWin=0,streak=0,auto=false,muted=false,bonus=5,shake=0,autoT=0,playerName='';
+const fmt=n=>Math.round(n).toLocaleString();
+const balls=[],parts=[],floats=[],rings=[],flash=Array(SLOTS).fill(0),hist=[];
+const slotOf=x=>Math.max(0,Math.min(SLOTS-1,Math.floor(x/SW)));
+const tierOf=s=>s>=CFG.GRAND?2:s>=CFG.TIER1?1:0;
+const paintSpins=()=>{$('spinsN').textContent=banked};
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+// ---------- the house edge ----------
+// DARK PATTERN #1: "near-miss shaping". The board decides, from your running score, how hard to
+// lean each bounce toward the middle columns (the 0.3x / 0.6x slots). The lean builds to a ceiling
+// just below the 1x prize, releases while you are between the prizes so a lucky run climbs fast,
+// then returns hard above WALL2_TOP so almost nobody carries the 3x prize home.
+// The bias only turns the ball as it leaves a peg — nothing is steered in midair.
+function biasFor(s){
+  if(s<CFG.WALL1_TOP)return CFG.BIAS_BASE+(1-CFG.BIAS_BASE)*(s/CFG.WALL1_TOP);
+  if(s<CFG.WALL2_START)return CFG.BIAS_BASE;
+  if(s<CFG.WALL2_TOP)return CFG.BIAS_BASE+(1-CFG.BIAS_BASE)*(s-CFG.WALL2_START)/(CFG.WALL2_TOP-CFG.WALL2_START);
+  return 1;
+}
+// DARK PATTERN #2: a few "lucky" balls ignore the bias, so the game can truthfully say
+// "anyone can win" — but every other ball leaves each peg a little more inward than it arrived.
+function biasBounce(b,s){
+  const k=(b.lucky?0:1)*CFG.BIAS_MAX*biasFor(s);
+  if(k<.01)return;
+  const v=b.velocity,dir=b.position.x<W/2?1:-1;
+  // damp the sideways motion and put part of the fall speed back into an inward bounce, so the
+  // ball leaves the peg turned toward the middle and can't carry its old drift across the board
+  Body.setVelocity(b,{x:v.x*(1-k)+dir*Math.abs(v.y)*k,y:v.y});
+}
+
+// ---------- logo layout ----------
+// The ASCII art is a LOGO: it is drawn (not pegged) in the middle of the play area,
+// and pegs fill every part of the board the logo does NOT cover.
+const PLAY_TOP=100,PLAY_BOT=SY-15;
+let minR=1e9,maxR=-1,minC=1e9,maxC=-1;
+ART.forEach((ln,r)=>{for(let c=0;c<ln.length;c++)if(ln[c]!==' '){minR=Math.min(minR,r);maxR=Math.max(maxR,r);minC=Math.min(minC,c);maxC=Math.max(maxC,c)}});
+const LOGO_X=W/2-(minC+maxC+1)/2*CW, LOGO_Y=(PLAY_TOP+PLAY_BOT)/2-(minR+maxR+1)/2*CH;
+const logoAt=(x,y)=>{const ch=(ART[Math.floor((y-LOGO_Y)/CH)]||'')[Math.floor((x-LOGO_X)/CW)];return ch&&ch!==' '?ch:null};
+// pre-rendered logo (with glow baked in) so it costs one drawImage per frame
+const logoLayer=document.createElement('canvas');logoLayer.width=W*dpr;logoLayer.height=H*dpr;
+{const tmp=document.createElement('canvas');tmp.width=W*dpr;tmp.height=H*dpr;
+ const t=tmp.getContext('2d');t.scale(dpr,dpr);
+ ART.forEach((ln,r)=>{for(let c=0;c<ln.length;c++){const ch=ln[c];if(ch===' ')continue;t.fillStyle=PALETTE[ch]||'#a779e8';t.fillRect(LOGO_X+c*CW,LOGO_Y+r*CH,CW+.5,CH+.5)}});
+ const x=logoLayer.getContext('2d');x.shadowColor='#7840b9';x.shadowBlur=18;x.drawImage(tmp,0,0);x.shadowBlur=0;x.drawImage(tmp,0,0)}
+
+// ---------- physics ----------
+// Built by a function so the Odds Lab can make an identical, invisible copy of the board.
+function makeWorld(scoreOf=()=>score,onBoom=null){
+  const eng=Engine.create({gravity:{x:0,y:1.1}}),ps=[];
+  const MARGIN=PR+2; // keep pegs just clear of the logo
+  const PEGCOLS=['#b27cff','#8a4fe0','#b27cff','#8a4fe0','#08ff00'];
+  for(let r=0,y=PLAY_TOP+PEG_GAP*.43;y<PLAY_BOT;r++,y+=PEG_GAP*.866){
+    for(let i=0,x=PEG_GAP/2+(r%2)*PEG_GAP/2;x<W-8;i++,x+=PEG_GAP){
+      // skip any lattice point that touches the logo (pegs live in the logo's negative space)
+      if(logoAt(x,y)||logoAt(x-MARGIN,y)||logoAt(x+MARGIN,y)||logoAt(x,y-MARGIN)||logoAt(x,y+MARGIN))continue;
+      // DARK PATTERN #3: the board is a funnel. Centre pegs are dead, so balls that drift
+      // inward settle there and the bounce bias (above) keeps turning them back. Pegs in the
+      // outer band are springy instead, so balls ricochet off the walls rather than sliding
+      // down them into the 30x corner slots.
+      const edge=Math.min(1,Math.abs(x-W/2)/(W/2));
+      const rest=Math.pow(edge,3)*.95;
+      const b=Bodies.circle(x,y,PR,{isStatic:true,friction:0,label:'peg'});
+      Body.set(b,'restitution',rest); // Body.create zeroes restitution on static bodies: set it after
+      b.glow=0;b.baseCol=b.col=PEGCOLS[(r*2+i)%PEGCOLS.length];
+      if(b.bomb=Math.random()<CFG.BOMB_CHANCE)b.col=BOMB; // live ordnance looks different
+      ps.push(b);
+    }
+  }
+  const lb=LINES.map(([x1,y1,x2,y2])=>Bodies.rectangle((x1+x2)/2,(y1+y2)/2,Math.hypot(x2-x1,y2-y1),6,{isStatic:true,angle:Math.atan2(y2-y1,x2-x1),restitution:.45,friction:0,label:'line'}));
+  const fixed=[Bodies.rectangle(-20,H/2,40,H*2,{isStatic:true}),Bodies.rectangle(W+20,H/2,40,H*2,{isStatic:true}),Bodies.rectangle(W/2,H+20,W,40,{isStatic:true})];
+  for(let i=1;i<SLOTS;i++)fixed.push(Bodies.rectangle(i*SW,SY+35,4,70,{isStatic:true}));
+  Composite.add(eng.world,[...ps,...fixed,...lb]);
+  // The bounce bias runs off the collision event, not the frame loop: Matter resolves the impact
+  // after 'collisionStart', so the turn is applied at 'afterUpdate', once the ball is leaving.
+  const queued=[],booms=[];
+  Events.on(eng,'collisionStart',e=>{for(const p of e.pairs){
+    const a=p.bodyA,b=p.bodyB,ball=a.label==='ball'?a:b.label==='ball'?b:null;
+    const peg=a.label==='peg'?a:b.label==='peg'?b:null;
+    if(!ball||!peg)continue;
+    if(peg.bomb){if(!peg.blown){peg.blown=1;booms.push([peg,ball])}}
+    else if(!ball.queued){ball.queued=1;queued.push(ball)}
+  }});
+  Events.on(eng,'afterUpdate',()=>{
+    for(const ball of queued){ball.queued=0;biasBounce(ball,scoreOf(ball))}
+    queued.length=0;
+    // a spent bomb goes back to being ordinary board, and the charge arms a different peg
+    for(const [peg,ball] of booms){
+      peg.bomb=0;peg.blown=0;peg.col=peg.baseCol;peg.glow=1;
+      const idle=ps.filter(p=>p!==peg&&!p.bomb&&!p.blown);
+      if(idle.length){const n=idle[Math.floor(Math.random()*idle.length)];n.bomb=1;n.col=BOMB}
+      const a=(Math.random()-.5)*2.4,sp=CFG.BOOM_SPEED*(.65+Math.random()*.7);
+      Body.setVelocity(ball,{x:Math.sin(a)*sp,y:Math.cos(a)*sp});
+      if(onBoom)onBoom(peg,ball);
+    }
+    booms.length=0;
+  });
+  return {eng,ps};
+}
+function boomFx(peg,ball){
+  burst(peg.position.x,peg.position.y,26,['#08ff00','#00e5ff','#ff2e88','#fff'],6,.35,.7);
+  burst(peg.position.x,peg.position.y,14,['#00e5ff','#fff'],13,.12,.45);
+  rings.push({x:peg.position.x,y:peg.position.y,r:4,life:.55,max:.55,c:'#00e5ff'});
+  rings.push({x:peg.position.x,y:peg.position.y,r:2,life:.4,max:.4,c:'#ff2e88'});
+  shake=Math.max(shake,18);
+  beep(90,.3,'sawtooth',.09);beep(1250,.1,'square',.04);
+}
+const {eng:engine,ps:pegs}=makeWorld(()=>score,boomFx),world=engine.world;
+// static glow layer so hundreds of pegs stay cheap to draw. Every peg is baked in its ordinary
+// colour; an armed one is painted over live, so defusing a peg just reveals the peg underneath.
+const pegLayer=document.createElement('canvas');pegLayer.width=W*dpr;pegLayer.height=H*dpr;
+{const x=pegLayer.getContext('2d');x.scale(dpr,dpr);for(const p of pegs){x.shadowColor=p.baseCol;x.shadowBlur=8;x.fillStyle=p.baseCol;x.beginPath();x.arc(p.position.x,p.position.y,PR,0,6.283);x.fill()}}
+function resetBombs(){for(const p of pegs){p.blown=0;p.bomb=Math.random()<CFG.BOMB_CHANCE;p.col=p.bomb?BOMB:p.baseCol}}
+Events.on(engine,'collisionStart',e=>{for(const p of e.pairs){
+  const a=p.bodyA,b=p.bodyB,peg=a.label==='peg'?a:b.label==='peg'?b:null,ball=a.label==='ball'?a:b.label==='ball'?b:null;
+  if(peg&&ball){if(!peg.bomb){peg.glow=1;ball.hits=(ball.hits||0)+1;burst(peg.position.x,peg.position.y,3,[peg.col,'#fff'],2,.05);beep(260+ball.hits*38,.07,'triangle',.05)}}
+  else if(ball&&(a.label==='line'||b.label==='line')){burst(ball.position.x,ball.position.y,4,['#ff2e88','#fff'],2.5,.05,.4);beep(520,.05,'square',.03)}
+}});
+
+// ---------- audio ----------
+let AC;const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}return AC};
+function beep(f,d=.08,type='sine',v=.06,w=0){const c=ac();if(!c||muted)return;const o=c.createOscillator(),g=c.createGain(),t=c.currentTime+w;
+  o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+d+.02)}
+function fanfare(m){const n=m>=8?10:m>=4?7:m>=3?5:m>=1?3:0;for(let i=0;i<n;i++)beep(440*Math.pow(1.122,i*2),.18,'square',.045,i*.07)}
+
+// ---------- fx ----------
+function burst(x,y,n,cols,sp,g,life=.6){for(let i=0;i<n;i++){const a=Math.random()*6.283,s=Math.random()*sp+.5;
+  parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-sp*.3,g,life,max:life,c:cols[i%cols.length],s:1.5+Math.random()*2.5})}}
+function slotColor(m){return m>=8?'#ff2e88':m>=5?'#ffd400':m>=4?'#08ff00':m>=1?'#7840b9':'#3a1f5c'}
+function bigText(h,p){const el=$('big');el.querySelector('h1').textContent=h;el.querySelector('p').textContent=p;el.classList.remove('show');void el.offsetWidth;el.classList.add('show')}
+function showBig(m,win){bigText(m>=8?'JACKPOT':m>=4?'BIG WIN':'NICE','+'+fmt(win)+' PTS')}
+
+// ---------- telemetry + stop prediction ----------
+// DARK PATTERN #4: the game models WHEN you are about to quit (pace slowing, loss streak). Disabled until TELEMETRY_URL is set.
+// Set to your server's /events URL (see plinko-server.js). Empty = nothing is sent.
+const TELEMETRY_URL='';
+const SID=(self.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Math.random()).slice(2); // anonymous, per visit
+const T={q:[],seq:0,last:0,lastLand:0,ema:0,dev:0,hist:[],lossRun:0,drops:0,ballN:0,pred:null,risk:0,ended:false,slots:Array(SLOTS).fill(0),wins:0,losses:0,net:0};
+const avg=a=>a.reduce((s,x)=>s+x,0)/a.length;
+function track(type,d){T.q.push(Object.assign({type,sid:SID,seq:T.seq++,t:Date.now()},d))}
+function flush(final){
+  if(!TELEMETRY_URL||!T.q.length)return;
+  const body=JSON.stringify({events:T.q.splice(0)});
+  try{
+    if(final&&navigator.sendBeacon)navigator.sendBeacon(TELEMETRY_URL,new Blob([body],{type:'application/json'}));
+    else fetch(TELEMETRY_URL,{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true}).catch(()=>{});
+  }catch(e){}
+}
+// Model: moving averages of the gap between manual drops and its spread. Stop risk grows with
+// how overdue the next drop is (z-score), a slowing pace, and a run of losses. Ignored while
+// balls are in flight, on AUTO, or before 3 drops have taught it the player's pace.
+function stopRisk(now){
+  if(phase!=='playing'||auto||balls.length||!T.last||T.hist.length<3)return 0;
+  const since=now-Math.max(T.last,T.lastLand);if(since<2500)return 0;
+  const z=(since-T.ema)/Math.max(T.dev,T.ema*.25);
+  const slow=T.hist.length>=6?avg(T.hist.slice(-3))/avg(T.hist.slice(0,3))-1:0;
+  return 1/(1+Math.exp(-(.9*z+1.2*Math.max(0,slow)+.15*T.lossRun-3)));
+}
+function dbg(){const el=$('dbg');if(location.hash!=='#debug'){el.hidden=true;return}
+  el.hidden=false;el.textContent='stop risk '+Math.round(T.risk*100)+'% | pace '+(T.ema/1000).toFixed(1)+'s | '+(T.pred?'STOP PREDICTED':'playing')}
+setInterval(()=>{const now=Date.now();T.risk=stopRisk(now);
+  if(T.risk>=.8&&!T.pred){T.pred={risk:T.risk};
+    track('stop_predicted',{risk:+T.risk.toFixed(2),idleMs:now-Math.max(T.last,T.lastLand),emaGapMs:Math.round(T.ema),score:score,lossRun:T.lossRun,drops:T.drops})}
+  dbg()},500);
+function onDrop(b){const now=Date.now();
+  if(T.pred){track('prediction_outcome',{hit:false,gapMs:now-T.last,risk:+T.pred.risk.toFixed(2)});T.pred=null} // they came back: false alarm
+  const gap=T.last?now-T.last:0;
+  if(!auto&&gap&&gap<60000){T.hist.push(gap);if(T.hist.length>12)T.hist.shift();
+    T.dev=T.ema?T.dev*.7+Math.abs(gap-T.ema)*.3:gap*.3;T.ema=T.ema?T.ema*.7+gap*.3:gap}
+  T.last=now;T.drops++;b.n=++T.ballN;b.t0=now;
+  track('drop',{ball:b.n,bet:b.bet,gapMs:gap,auto,inFlight:balls.length-1,score:score});
+}
+function onResult(b,slot,m,win,hot){const net=+(win-b.bet).toFixed(2);
+  T.lastLand=Date.now();T.slots[slot]++;T.net+=net;
+  if(net>0){T.wins++;T.lossRun=0}else if(net<0){T.losses++;T.lossRun++}
+  track('result',{ball:b.n,bet:b.bet,slot,mult:m,bonus:hot,win,net,outcome:net>0?'win':net<0?'loss':'push',flightMs:T.lastLand-b.t0,score:score,lossRun:T.lossRun});
+}
+function endSession(){if(T.ended)return;T.ended=true;
+  if(T.pred){track('prediction_outcome',{hit:true,gapMs:Date.now()-T.last,risk:+T.pred.risk.toFixed(2)});T.pred=null}
+  track('session_end',{drops:T.drops,wins:T.wins,losses:T.losses,net:+T.net.toFixed(2),slots:T.slots,score:score});flush(true)}
+addEventListener('pagehide',endSession);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)endSession();else T.ended=false});
+setInterval(()=>flush(false),3000);
+if(TELEMETRY_URL)$('note').hidden=false;
+track('session_start',{score:score,w:innerWidth});
+
+// ---------- game ----------
+let aim=0;
+function makeBall(a,sp,group){
+  const b=Bodies.circle(W/2+Math.sin(a)*22,30+Math.cos(a)*22,BR,{restitution:.55,friction:.001,frictionAir:.002,density:.001,label:'ball'});
+  if(group)b.collisionFilter.group=group;
+  Body.setVelocity(b,{x:Math.sin(a)*sp,y:Math.cos(a)*sp});
+  b.lucky=Math.random()<CFG.LUCKY_CHANCE;
+  return b;
+}
+function dots(){
+  $('ballsN').textContent=ballsLeft;
+  $('dots').innerHTML=Array.from({length:ballsTotal},(_, k)=>'<i'+(k>=ballsLeft?' class="used"':'')+'></i>').join('');
+}
+function drop(){
+  if(phase!=='playing'||ballsLeft<1)return;
+  ballsLeft--;dots();
+  const a=aim+(Math.random()-.5)*.12,sp=3+Math.random()*4;
+  const b=makeBall(a,sp);
+  b.bet=CFG.BALL_VALUE;b.born=performance.now();b.still=0;b.trail=[];Composite.add(world,b);balls.push(b);onDrop(b);
+  beep(180,.12,'sawtooth',.04);burst(b.position.x,b.position.y,10,['#08ff00','#fff'],3,.02,.4);
+}
+function land(b){
+  const i=slotOf(b.position.x);
+  let m=MULT[i];const isBonus=i===bonus;if(isBonus)m*=2;
+  const win=Math.round(CFG.BALL_VALUE*m);score+=win;lastWin=win;onResult(b,i,m,win,isBonus);
+  // multiplier, not points: "3X" for a normal landing, "3O" when the 2x bonus slot doubled it
+  ballSets[ballSets.length-1].push((Math.round(m*10)/10)+(isBonus?'O':'X'));
+  streak=m>=1?streak+1:0;flash[i]=1;
+  hist.unshift({m,c:slotColor(m)});hist.length=Math.min(hist.length,10);
+  $('hist').innerHTML=hist.map(h=>`<span style="background:${h.c};color:${h.c==='#3a1f5c'||h.c==='#7840b9'?'#fff':'#05000a'}">${h.m}×</span>`).join('');
+  $('streak').textContent=streak>=2?'🔥 '+streak+' win streak':'';
+  $('win').classList.remove('pop');void $('win').offsetWidth;$('win').classList.add('pop');
+  const x=(i+.5)*SW;
+  floats.push({x,y:SY-6,t:'+'+fmt(win),c:m>=1?'#08ff00':'#a98bd6',life:1.2});
+  burst(x,SY,m>=8?90:m>=4?40:m>=1?18:6,m>=8?['#ffd400','#ff2e88','#08ff00','#fff']:['#08ff00','#7840b9'],m>=8?7:4,.12,1);
+  if(m>=4){shake=m>=8?14:6;showBig(m,win)}
+  fanfare(m);if(m<1)beep(140,.2,'sine',.05);
+  ballNo++;
+  const nt=tierOf(score);
+  // spins bank the moment a prize is reached and stay banked across runs until they are redeemed
+  if(nt>tier){banked+=nt===2?(tier===1?2:3):1;milestones.push(ballNo);paintSpins();tier=nt;shake=14;fanfare(30);bigText(tier===2?'GRAND PRIZE':'TIER 1 UNLOCKED',tier===2?'3× SPIN':'1× SPIN')}
+  Composite.remove(world,b);balls.splice(balls.indexOf(b),1);
+  let n;do{n=Math.floor(Math.random()*SLOTS)}while(n===bonus);bonus=n;
+  if(ballsLeft<1&&!balls.length&&phase==='playing'){phase='ending';setTimeout(gameOver,700)}
+}
+
+// ---------- session flow: start, game over, re-buy, cash out ----------
+const modal=$('modal'),mb=$('mBody');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let offerTimer=null;
+function closeModal(){clearInterval(offerTimer);modal.classList.remove('open')}
+function show(html){clearInterval(offerTimer);mb.innerHTML=html;modal.classList.add('open');modal.scrollTop=0;const f=mb.querySelector('button');if(f)f.focus({preventScroll:true})}
+function begin(n,keep){
+  if(!keep){
+    submitReport(); // a fresh ten-ball entry is when the last run gets reported
+    score=0;shown=0;lastWin=0;tier=0;streak=0;$('streak').textContent='';resetBombs();
+    runBalls=CFG.BALLS;runCost=CFG.COST_ENTRY;ballNo=0;milestones=[];
+  }
+  else{ballSets.push([]);runBalls+=CFG.EXTRA_BALLS;runCost+=CFG.COST_CONTINUE} // a bought batch starts a new set
+  ballsLeft=ballsTotal=n;phase='playing';closeModal();dots();beep(660,.15,'square',.05);
+}
+function gapLine(){
+  const next=tier<1?CFG.TIER1:tier<2?CFG.GRAND:0;
+  if(!next)return 'GRAND PRIZE UNLOCKED! 3× SPIN!';
+  const gap=next-score,lead=tier<1?'the TIER 1 PRIZE (1× SPIN)':'the GRAND PRIZE (3× SPIN)';
+  const pre=tier<1?'':'TIER 1 UNLOCKED! ';
+  // DARK PATTERN #5: the near-miss message. "Only" is doing a lot of work here.
+  return pre+(gap<=next*.5?'Only ':'')+fmt(gap)+' PTS '+(gap<=next*.5?'away from ':'to go for ')+lead+'!';
+}
+function gameOver(){
+  phase='over';auto=false;$('auto').classList.remove('on');
+  bigText('GAME OVER','FINAL '+fmt(score)+' PTS');
+  setTimeout(()=>{if(phase==='over')openOver()},1800);
+}
+// DARK PATTERN #6: "keep your progress" is sold as continuing rather than restarting (sunk cost),
+// pushed with a countdown. Let it run out and the same button quietly becomes the full restart.
+let offerLeft=0;
+function expireOffer(btn){
+  clearInterval(offerTimer);
+  btn.classList.remove('alt','big');
+  btn.textContent='RE-ENTRY: '+CFG.COST_ENTRY+' 🍫 FOR '+CFG.BALLS+' BALLS · score resets to 0';
+  btn.onclick=()=>{recordScore();begin(CFG.BALLS,false)};
+}
+function startOffer(){
+  clearInterval(offerTimer);
+  const btn=$('bCont'),sub=$('contSub');
+  if(!btn||!sub)return;
+  // a grand-prize run gets the same menu, only the upsell is already spent
+  if(tier>=2){expireOffer(btn);return}
+  offerLeft=15;
+  const tick=()=>{
+    if(!$('contSub')){clearInterval(offerTimer);return}
+    if(offerLeft>0){$('contSub').textContent=CFG.COST_CONTINUE+' 🍫 · offer ends in '+offerLeft+'s';offerLeft--}
+    else expireOffer(btn);
+  };
+  tick();offerTimer=setInterval(tick,1000);
+}
+function openOver(){
+  const b=boardNow(),lead=b[0]?b[0].s:0,rank=b.filter(e=>e.s>score).length+1;
+  const next=score>=CFG.GRAND?CFG.GRAND:score>=CFG.TIER1?CFG.GRAND:CFG.TIER1;
+  const fill=Math.round(Math.pow(Math.min(1,score/next),CFG.BAR_CURVE)*100);
+  show(`<h2>GAME OVER</h2>
+  <div class="big2"><small>FINAL CHECKOUT SCORE</small><b>${fmt(score)} PTS</b></div>
+  <div class="prizeBar" role="progressbar" aria-label="Progress to next prize"><i id="pBar" style="width:${fill}%"></i><b>${fmt(score)} / ${fmt(next)} PTS · ${tier<1?'1× SPIN':'3× SPIN'}</b></div>
+  <p class="hot">${esc(gapLine())}</p>
+  ${banked?`<p class="sub">${banked} SPIN${banked>1?'S':''} BANKED · REDEEM ANY TIME</p>`:''}
+  <button class="cta alt big" id="bCont">KEEP ${fmt(score)} PTS · ${CFG.EXTRA_BALLS} MORE BALLS<small id="contSub"></small></button>
+  <button id="bCash">I'M DONE · CASH OUT</button>
+  <p class="tiny">BOARD LEADER ${fmt(lead)} · YOUR RANK TODAY #${rank}${lead>score?' · '+fmt(lead-score)+' PTS BEHIND':''}</p>`);
+  $('bCont').onclick=()=>{begin(CFG.EXTRA_BALLS,true)};
+  $('bCash').onclick=openCash;
+  startOffer();
+}
+function openStart(){
+  phase='start';
+  show(`<h2>NEON PLINKO</h2>
+  <p class="sub">ENTRY: ${CFG.COST_ENTRY} 🍫 = ${CFG.BALLS} BALLS</p>
+  <p>Reach <b>${fmt(CFG.TIER1)} PTS</b> for a <b>1× SPIN</b><br>Reach <b>${fmt(CFG.GRAND)} PTS</b> for the <b>3× SPIN</b> GRAND PRIZE</p>
+  <input id="inName" maxlength="12" placeholder="YOUR NAME" aria-label="Your name" autocomplete="off">
+  <button class="cta" id="bStart">START · PAY ${CFG.COST_ENTRY} 🍫<small>vendor takes payment, then tap</small></button>`);
+  $('bStart').onclick=()=>{playerName=$('inName').value.trim().toUpperCase()||'PLAYER';begin(CFG.BALLS,false)};
+}
+const spinWord=n=>n+'× SPIN';
+function openCash(){
+  phase='done';
+  show(`<h2>CASH OUT</h2>
+  <div class="big2"><small>FINAL CHECKOUT SCORE</small><b>${fmt(score)} PTS</b></div>
+  <p class="prize">${banked?spinWord(banked)+' BANKED':'NO SPINS BANKED'}</p>
+  <button class="cta" id="bSubmit">${banked?'REDEEM '+spinWord(banked):'FINISH'}</button>
+  <button id="bBack">← BACK</button>`);
+  $('bSubmit').onclick=submitCash;
+  $('bBack').onclick=()=>{phase='over';openOver()};
+}
+function submitCash(){
+  submitReport(); // redeeming is the moment the finished run gets reported
+  recordScore();
+  const n=banked,code=n?('SPIN'+n+'-'+Math.random().toString(36).slice(2,6).toUpperCase()):'';
+  banked=0;paintSpins();
+  show(`<h2>${n?'THANK YOU!':'CASHED OUT'}</h2>
+  <p class="prize">${n?spinWord(n)+' TO COLLECT':'No spins this visit.'}</p>
+  ${code?`<p>SHOW THIS CODE TO THE VENDOR<br><b style="font-size:1.4rem">${code}</b></p>`:''}
+  <button class="cta" id="bNext">NEXT PLAYER</button>`);
+  $('bNext').onclick=()=>{score=0;shown=0;tier=0;lastWin=0;ballsLeft=0;ballsTotal=0;ballSets=[[]];dots();renderBoard();openStart()};
+}
+
+// ---------- local daily leaderboard ----------
+// DARK PATTERN #7: social proof. The board is pre-seeded with scores that are hard to reach,
+// so every new player starts out "behind" and is nudged to buy another run.
+const SEEDS=[{n:'CHOCO_KING',s:62000,seed:1},{n:'NEON_NINA',s:57400,seed:1},{n:'MR_PEG',s:53900,seed:1},{n:'DROPZONE',s:49200,seed:1},{n:'BALLER',s:46800,seed:1}];
+function boardNow(){
+  const d=new Date().toDateString(),b=LS.get('plinko-board',null);
+  if(!b||b.d!==d||!Array.isArray(b.e)){const fresh={d,e:SEEDS.map(x=>({...x}))};LS.set('plinko-board',fresh);return fresh.e}
+  return b.e;
+}
+function recordScore(){
+  if(score<=0)return;
+  const e=boardNow().concat([{n:playerName||'PLAYER',s:score}]).sort((a,b)=>b.s-a.s).slice(0,8);
+  LS.set('plinko-board',{d:new Date().toDateString(),e});renderBoard();
+}
+function renderBoard(){
+  const ol=$('lbList');ol.textContent='';
+  const teacher=location.hash==='#teacher';
+  boardNow().slice(0,5).forEach((e,k)=>{
+    const li=document.createElement('li'),l=document.createElement('span'),r=document.createElement('span');
+    l.textContent=(k+1)+'. '+String(e.n).slice(0,12);
+    if(teacher&&e.seed){const t=document.createElement('em');t.textContent='(fake)';l.appendChild(t)}
+    r.textContent=fmt(+e.s||0);li.append(l,r);ol.appendChild(li);
+  });
+}
+
+// ---------- render ----------
+function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r)}
+function draw(t){
+  ctx.save();ctx.clearRect(0,0,W,H);
+  if(shake>.3){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.9}
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0a0015');g.addColorStop(1,'#1c0630');ctx.fillStyle=g;ctx.fillRect(-20,-20,W+40,H+40);
+  // launcher
+  ctx.save();ctx.translate(W/2,22);ctx.rotate(-aim);ctx.shadowColor='#08ff00';ctx.shadowBlur=14;ctx.strokeStyle='#08ff00';ctx.fillStyle='#08ff00';ctx.lineWidth=2;
+  ctx.setLineDash([3,5]);ctx.beginPath();ctx.moveTo(0,10);ctx.lineTo(0,56);ctx.stroke();ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(0,70);ctx.lineTo(-8,54);ctx.lineTo(8,54);ctx.closePath();ctx.fill();ctx.restore();
+  ctx.fillStyle='#7840b9';ctx.beginPath();ctx.arc(W/2,22,10,0,6.283);ctx.fill();
+  // logo
+  ctx.save();ctx.globalAlpha=.5;ctx.drawImage(logoLayer,0,0,W,H);ctx.restore();
+  // pegs
+  ctx.drawImage(pegLayer,0,0,W,H);
+  for(const p of pegs){const gl=p.glow;if(gl<.03)continue;p.glow*=.9;ctx.shadowColor=p.col;ctx.shadowBlur=8+gl*22;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(p.position.x,p.position.y,PR+gl*3,0,6.283);ctx.fill()}
+  // live bombs: they vanish once spent, so they can't live in the pre-rendered layer
+  for(const p of pegs){if(!p.bomb||p.blown)continue;const pl=.5+.5*Math.sin(t/85+p.position.x*.3);
+    ctx.shadowColor=p.col;ctx.shadowBlur=9+pl*16;ctx.fillStyle=p.col;ctx.beginPath();ctx.arc(p.position.x,p.position.y,PR+pl*1.8,0,6.283);ctx.fill()}
+  ctx.lineCap='round';ctx.shadowColor='#ff2e88';ctx.shadowBlur=14;ctx.strokeStyle='#ff2e88';ctx.lineWidth=6;
+  for(const l of LINES){ctx.beginPath();ctx.moveTo(l[0],l[1]);ctx.lineTo(l[2],l[3]);ctx.stroke()}
+  ctx.shadowBlur=0;
+  // slots
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(let i=0;i<SLOTS;i++){const m=MULT[i],c=slotColor(m),x=i*SW+3,fl=flash[i];flash[i]*=.92;
+    ctx.globalAlpha=.85;ctx.fillStyle=c;rr(x,SY+6,SW-6,64,6);ctx.fill();
+    if(fl>.02){ctx.globalAlpha=fl;ctx.fillStyle='#fff';rr(x,SY+6,SW-6,64,6);ctx.fill()}
+    ctx.globalAlpha=1;ctx.fillStyle=m===.3||m===.6||m===1.5&&0?'#fff':(m>=3&&m<25||m===1.5)?'#05000a':'#fff';
+    ctx.font='800 '+(m>=10?12:11)+'px Orbitron,monospace';ctx.fillText(m+'×',(i+.5)*SW,SY+38);
+    if(i===bonus){const pl=.6+.4*Math.sin(t/140);ctx.save();ctx.shadowColor='#ffd400';ctx.shadowBlur=18*pl;ctx.strokeStyle='#ffd400';ctx.lineWidth=3;rr(x,SY+6,SW-6,64,6);ctx.stroke();
+      ctx.fillStyle='#ffd400';ctx.font='800 10px Orbitron,monospace';ctx.fillText('2×',(i+.5)*SW,SY-8-pl*3);ctx.restore()}}
+  // balls
+  for(const b of balls){const tr=b.trail;tr.push({x:b.position.x,y:b.position.y});if(tr.length>16)tr.shift();
+    for(let k=1;k<tr.length;k++){ctx.strokeStyle=`rgba(8,255,0,${k/tr.length*.6})`;ctx.lineWidth=k/tr.length*10;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(tr[k-1].x,tr[k-1].y);ctx.lineTo(tr[k].x,tr[k].y);ctx.stroke()}
+    ctx.shadowColor='#08ff00';ctx.shadowBlur=20;ctx.fillStyle='#08ff00';ctx.beginPath();ctx.arc(b.position.x,b.position.y,BR,0,6.283);ctx.fill();
+    ctx.shadowBlur=0;ctx.fillStyle='#e8ffe6';ctx.beginPath();ctx.arc(b.position.x-2.5,b.position.y-2.5,2.5,0,6.283);ctx.fill()}
+  // particles + neon shock rings + floating text
+  for(const p of parts){ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.s,p.s)}
+  for(const r of rings){const k=Math.max(0,r.life/r.max);ctx.globalAlpha=k;ctx.strokeStyle=r.c;ctx.shadowColor=r.c;ctx.shadowBlur=20*k;ctx.lineWidth=1+4*k;ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,6.283);ctx.stroke()}
+  ctx.shadowBlur=0;ctx.globalAlpha=1;ctx.font='800 15px Orbitron,monospace';
+  for(const f of floats){ctx.globalAlpha=Math.min(1,f.life);ctx.fillStyle=f.c;ctx.shadowColor=f.c;ctx.shadowBlur=10;ctx.fillText(f.t,Math.max(40,Math.min(W-40,f.x)),f.y)}
+  ctx.restore();
+}
+
+// ---------- loop ----------
+const STEPMS=1000/120;let acc=0,prev=0;
+function frame(t){
+  const dt=Math.min(50,t-(prev||t));prev=t;acc+=dt;
+  aim=Math.sin(t/260)*1.1+Math.sin(t/97)*.25;
+  while(acc>=STEPMS){Engine.update(engine,STEPMS);acc-=STEPMS}
+  for(const b of balls.slice()){
+    if(b.position.y>SY+10)land(b);
+    else{const sp=Math.hypot(b.velocity.x,b.velocity.y);b.still=sp<.25?b.still+dt:0;
+      if(b.still>1200||b.position.y<-50){b.still=0;Body.setVelocity(b,{x:(Math.random()-.5)*4,y:-2})}}}
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;p.life-=dt/1000;if(p.life<=0)parts.splice(i,1)}
+  for(let i=floats.length-1;i>=0;i--){const f=floats[i];f.y-=.6;f.life-=dt/1000;if(f.life<=0)floats.splice(i,1)}
+  for(let i=rings.length-1;i>=0;i--){const r=rings[i];r.r+=dt*.42;r.life-=dt/1000;if(r.life<=0)rings.splice(i,1)}
+  if(auto&&phase==='playing'&&t-autoT>650){autoT=t;drop()}
+  shown+=(score-shown)*.15;if(Math.abs(score-shown)<.5)shown=score;
+  $('sc').textContent=fmt(shown);$('lw').textContent=fmt(lastWin);
+  const next=score>=CFG.GRAND?CFG.GRAND:score>=CFG.TIER1?CFG.GRAND:CFG.TIER1;
+  // DARK PATTERN: the bar is drawn on a curve, not to scale, so a run that is a quarter of the way
+  // to the prize already looks nearly half full.
+  $('goalFill').style.width=Math.min(100,Math.pow(Math.min(1,shown/next),CFG.BAR_CURVE)*100)+'%';
+  $('goalTxt').textContent=tier<1?'TIER 1 · 1× SPIN · '+fmt(CFG.TIER1)+' PTS':tier<2?'TIER 1 ✓ · GRAND 3× SPIN · '+fmt(CFG.GRAND)+' PTS':'GRAND PRIZE UNLOCKED · 3× SPIN';
+  const d=$('drop');d.textContent=phase==='playing'?'DROP ('+ballsLeft+')':'DROP';d.disabled=!(phase==='playing'&&ballsLeft>0);
+  draw(t);requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- controls ----------
+$('drop').onclick=drop;
+$('auto').onclick=e=>{auto=!auto;e.currentTarget.classList.toggle('on',auto)};
+$('mute').onclick=e=>{muted=!muted;e.currentTarget.classList.toggle('on',muted);e.currentTarget.textContent=muted?'MUTED':'SFX'};
+addEventListener('keydown',e=>{if(e.code==='Space'&&!modal.classList.contains('open')){e.preventDefault();if(!e.repeat)drop()}});
+cv.addEventListener('pointerdown',drop);
+
+// ---------- teacher mode (add #teacher to the URL) ----------
+// Odds Lab: runs the REAL physics + REAL bounce bias, without drawing, for N sessions in parallel
+// (balls are set not to collide with each other) and reports what players actually get.
+async function runLab(N){
+  const out=$('labOut'),btn=$('labRun');btn.disabled=true;out.textContent='running…';
+  const {eng}=makeWorld(b=>b.sess.score),sess=Array.from({length:N},()=>({score:0})),counts=Array(SLOTS).fill(0);
+  let live=[];
+  const finish=b=>{
+    const i=slotOf(b.position.x);let m=MULT[i];if(i===Math.floor(Math.random()*SLOTS))m*=2;
+    b.sess.score+=Math.round(CFG.BALL_VALUE*m);counts[i]++;Composite.remove(eng.world,b);
+  };
+  for(let n=0;n<CFG.BALLS;n++){
+    live=sess.map(s=>{
+      const a=Math.sin(Math.random()*6.283)*1.1+Math.sin(Math.random()*6.283)*.25+(Math.random()-.5)*.12;
+      const b=makeBall(a,3+Math.random()*4,-1);b.sess=s;Composite.add(eng.world,b);return b});
+    let steps=0;
+    while(live.length){
+      for(let k=0;k<30&&live.length;k++){
+        Engine.update(eng,STEPMS);steps++;
+        live=live.filter(b=>{if(b.position.y>SY+10||steps>4000){finish(b);return false}return true});
+      }
+      out.textContent='ball '+(n+1)+' of '+CFG.BALLS+'…';
+      await new Promise(r=>setTimeout(r,0));
+    }
+  }
+  const sc=sess.map(s=>s.score).sort((a,b)=>a-b),q=f=>fmt(sc[Math.floor(f*(N-1))]);
+  const t1=sc.filter(x=>x>=CFG.TIER1).length,gr=sc.filter(x=>x>=CFG.GRAND).length;
+  out.textContent=
+    N+' sessions x '+CFG.BALLS+' balls\n'+
+    'score  p10 '+q(.1)+' | median '+q(.5)+' | p90 '+q(.9)+' | max '+fmt(sc[N-1])+'\n'+
+    'Tier 1 ('+fmt(CFG.TIER1)+'): '+(t1/N*100).toFixed(1)+'%  ('+t1+' of '+N+')\n'+
+    'Grand  ('+fmt(CFG.GRAND)+'): '+(gr/N*100).toFixed(1)+'%  ('+gr+' of '+N+')\n'+
+    'slot landings:\n'+MULT.map((m,i)=>'  '+(m+'x').padEnd(5)+(counts[i]/(N*CFG.BALLS)*100).toFixed(1)+'%').join('\n')+
+    '\n(0 of N does not mean impossible: raise N, or see LUCKY_CHANCE)';
+  btn.disabled=false;
+}
+function teacher(){
+  const on=location.hash==='#teacher';$('lab').hidden=!on;
+  if(on)$('labLive').textContent='bounce lean '+(biasFor(score)*CFG.BIAS_MAX).toFixed(2)+' rad · ceilings at '+fmt(CFG.WALL1_TOP)+' / '+fmt(CFG.WALL2_TOP)+' · lucky balls (no bias) '+(CFG.LUCKY_CHANCE*100)+'%';
+}
+$('labRun').onclick=()=>runLab(300);
+addEventListener('hashchange',()=>{teacher();renderBoard()});setInterval(teacher,500);teacher();
+
+// ---------- sign-in + reporting ----------
+// Fill AUTH in and it works: CLIENT_ID from a Google Cloud OAuth client whose authorised origin is
+// this page, FORM_ID from the form's /d/e/<id>/viewform link, and ENTRY from each question's name.
+// Left blank, sign-in fails by design and the button shows the X state.
+const AUTH={
+  CLIENT_ID:'350509795149-hklj79vb296qq966sp6qakcvegev5b8d.apps.googleusercontent.com',
+  SCOPE:'openid email profile',
+  FORM_ID:'1FAIpQLSesklzFc1qGqq3NDxdbaMBi7gX21sahaMPvKJyNrRBciibBHg',
+  ENTRY:{
+         balls:'entry.448530807',
+         spins:'entry.85037662',
+         name:'entry.790043995',
+         score:'entry.1646878876',
+         tokens:'entry.914764417',
+         tier:'entry.1072028879',
+         email:'entry.1294605724'}
+};
+let auth={state:'idle',msg:'',token:'',profile:null},ballSets=[[]],authGuard=null;
+let runBalls=CFG.BALLS,runCost=CFG.COST_ENTRY,ballNo=0,milestones=[]; // per-run: balls bought, tokens spent, balls landed, prize crossings
+
+function paintAuth(){
+  const b=$('signIn'),msg=$('authMsg');if(!b)return;
+  b.className='signin'+(auth.state==='idle'?'':' '+auth.state);
+  b.textContent=auth.state==='ok'?('✓ SIGNED IN'+(auth.profile&&auth.profile.name?' · '+auth.profile.name:''))
+    :auth.state==='pending'?'SIGNING IN…'
+    :auth.state==='failed'?'✗ SIGN IN FAILED · RETRY'
+    :'SIGN IN WITH GOOGLE';
+  b.disabled=auth.state==='ok'||auth.state==='pending';
+  msg.textContent=auth.msg;
+}
+function failAuth(msg){auth.state='failed';auth.msg=msg;clearTimeout(authGuard);paintAuth()}
+function loadGIS(){
+  return new Promise((res,rej)=>{
+    if(window.google&&google.accounts&&google.accounts.oauth2)return res();
+    const s=document.createElement('script');
+    s.src='https://accounts.google.com/gsi/client';s.async=true;s.defer=true;
+    s.onload=()=>res();s.onerror=()=>rej(new Error('Could not load Google sign-in.'));
+    document.head.appendChild(s);
+  });
+}
+async function signIn(){
+  if(auth.state==='pending'||auth.state==='ok')return;
+  if(!AUTH.CLIENT_ID)return failAuth('No OAuth client id set. A client id is public, not a secret — add it to AUTH.');
+  auth.state='pending';auth.msg='';paintAuth();
+  clearTimeout(authGuard);authGuard=setTimeout(()=>{if(auth.state==='pending')failAuth('Sign-in timed out.')},60000);
+  try{
+    await loadGIS();
+    const tc=google.accounts.oauth2.initTokenClient({client_id:AUTH.CLIENT_ID,scope:AUTH.SCOPE,callback:async r=>{
+      if(r.error||!r.access_token)return failAuth('Google returned: '+(r.error||'no token'));
+      auth.token=r.access_token;
+      try{
+        const p=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+r.access_token}});
+        if(p.ok)auth.profile=await p.json();
+      }catch(e){}
+      auth.state='ok';auth.msg='Ball data is reported when you re-enter.';clearTimeout(authGuard);paintAuth();
+    }});
+    tc.requestAccessToken();
+  }catch(e){failAuth(e.message||'Sign-in failed.')}
+}
+// multiplier of every landed ball ("3X", "1.2O"); "-" within a set, "_" at every +5 bought block
+function ballField(){
+  return ballSets.map(s=>s.join('-')).filter(Boolean).join('_');
+}
+function reportData(){
+  const d=new URLSearchParams(),E=AUTH.ENTRY;
+  d.set(E.balls,ballField());
+  d.set(E.spins,milestones.length?milestones.join('/'):'-'); // ball number each prize was reached on
+  d.set(E.name,playerName||'PLAYER');
+  d.set(E.score,String(Math.round(score)));
+  d.set(E.tokens,String(runCost)); // paid to reach this score: entry + one per bought batch
+  d.set(E.tier,String(tier));
+  if(auth.profile&&auth.profile.email)d.set(E.email,auth.profile.email);
+  return d;
+}
+async function submitReport(){
+  if(auth.state!=='ok'||!AUTH.FORM_ID||!ballSets.some(s=>s.length))return false;
+  const body=reportData().toString();
+  ballSets=[[]]; // cleared now so the run that just started can't be mixed into this report
+  try{
+    // Forms has no authenticated write API, so responses go to the form's public endpoint
+    await fetch('https://docs.google.com/forms/d/e/'+AUTH.FORM_ID+'/formResponse',
+      {method:'POST',mode:'no-cors',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body});
+    auth.msg='Report submitted.';paintAuth();return true;
+  }catch(e){auth.msg='Report failed.';paintAuth();return false}
+}
+$('signIn').onclick=signIn;
+paintAuth();
+
+renderBoard();dots();openStart();
+</script>
+</body>
+</html>
