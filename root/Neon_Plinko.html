@@ -156,10 +156,10 @@ const CFG={
   WALL2_START:52000,   // second ramp across the gap between the prizes
   WALL2_TOP:76000,
   BIAS_MAX:1,          // how much of the bounce turns inward: 1 sends the ball 45 degrees toward the middle
-  BAR_CURVE:.55,        // progress bar exponent: below 1 the bar runs ahead of the real score
+  BAR_CURVE:.1,        // progress bar exponent: below 1 the bar runs ahead of the real score
   BOMB_CHANCE:.09,     // share of pegs that detonate on first contact
   BOOM_SPEED:11,       // speed the blast hands the ball, in px per physics step
-  LUCKY_CHANCE:0.08    // one ball in five takes no steering at all: this is what makes winning "possible"
+  LUCKY_CHANCE:0.10    // one ball in five takes no steering at all: this is what makes winning "possible"
 };
 // ELEPHANT: a peg is placed on a staggered lattice wherever a character below is not a space.
 // The art maps onto a 480px-wide area starting at ART_Y; shrink PEG_GAP for a crisper elephant (ball must stay smaller than the gaps).
