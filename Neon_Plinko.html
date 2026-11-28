@@ -143,7 +143,7 @@ const LINES=[
 // 🎓 TEACHING MAP: look for the "DARK PATTERN" comments, each one marks a manipulation technique.
 // =====================================================================
 const CFG={
-  BALLS:10,            // balls per entry
+  BALLS:15,            // balls per entry
   EXTRA_BALLS:5,       // balls per "continue" purchase (keeps your score)
   COST_ENTRY:2,COST_CONTINUE:1,  // in chocolates, display only
   BALL_VALUE:2500,     // points a ball is worth at 1x
@@ -152,14 +152,14 @@ const CFG={
   // BOUNCE BIAS: each peg hit turns the outgoing velocity toward the middle by up to BIAS_MAX
   // radians, scaled by how close the score is to a prize. Balls are never steered in midair.
   BIAS_BASE:.5,        // the lean never drops below half strength, so every bounce aims inward a little
-  WALL1_TOP:30000,     // the lean reaches full strength here, just short of the 1x prize, then releases
-  WALL2_START:52000,   // second ramp across the gap between the prizes
-  WALL2_TOP:76000,
-  BIAS_MAX:1,          // how much of the bounce turns inward: 1 sends the ball 45 degrees toward the middle
+  WALL1_TOP:35000,     // the lean reaches full strength here, just short of the 1x prize, then releases
+  WALL2_START:50000,   // second ramp across the gap between the prizes
+  WALL2_TOP:86000,
+  BIAS_MAX:0.4,          // how much of the bounce turns inward: 1 sends the ball 45 degrees toward the middle
   BAR_CURVE:.5,        // progress bar exponent: below 1 the bar runs ahead of the real score
   BOMB_CHANCE:.09,     // share of pegs that detonate on first contact
   BOOM_SPEED:11,       // speed the blast hands the ball, in px per physics step
-  LUCKY_CHANCE:1    // one ball in five takes no steering at all: this is what makes winning "possible"
+  LUCKY_CHANCE:0.2    // one ball in five takes no steering at all: this is what makes winning "possible"
 };
 // ELEPHANT: a peg is placed on a staggered lattice wherever a character below is not a space.
 // The art maps onto a 480px-wide area starting at ART_Y; shrink PEG_GAP for a crisper elephant (ball must stay smaller than the gaps).
@@ -212,7 +212,7 @@ const ART=`
                                       #       ****====       *
                                               #***++==
                                               #***+++=`.split('\n').slice(1);
-const MULT=[10,5,4,1.5,.6,.3,.6,1.5,4,5,10];
+const MULT=[15,5,4,1.5,.6,.3,.6,1.5,4,5,15];
 const $=id=>document.getElementById(id);
 const cv=$('c'),ctx=cv.getContext('2d'),dpr=Math.min(2,window.devicePixelRatio||1);
 cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -247,7 +247,7 @@ function biasBounce(b,s){
   const v=b.velocity,dir=b.position.x<W/2?1:-1;
   // damp the sideways motion and put part of the fall speed back into an inward bounce, so the
   // ball leaves the peg turned toward the middle and can't carry its old drift across the board
-  Body.setVelocity(b,{x:v.x*(1-k)+dir*Math.abs(v.y)*k,y:v.y - 10});
+  Body.setVelocity(b,{x:v.x*(1-k)+dir*Math.abs(v.y)*k,y:Math.min(v.y, v.y * 1.15)});
 }
 
 // ---------- logo layout ----------
